@@ -55,14 +55,15 @@ range(df$Datetime)
 # "2014-01-01 07:41:00 UTC" "2017-12-31 17:18:00 UTC"
 
 # Let's examine power output over the year - daily and monthly
+df$Date <- as.Date(df$Datetime)
+df$Month <- month(df$Datetime)
+df$Hour <- hour(df$Datetime)
+time(df$Datetime)
 
 
+# weather data
 
-
-
-
-
-
+weather <- read.csv('data/sunlab-faro-meteo-2014.csv', sep = ";")
 
 
 
