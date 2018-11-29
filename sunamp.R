@@ -34,6 +34,16 @@ library(tidyverse)
 library(data.table)
 library(lubridate)
 library(ggplot2)
+library(corrplot)
+library(neuralnet)
+library(broom)
+library(forcats)
+library(modelr)
+library(lattice)
+library(caret)
+library(glmnet)
+library(psych)
+library(ggExtra)
 
 # We have columns for PV panels oriented horiztonally, vertically and 'optimally'
 # We only want to examine 'Optimal' configuration
@@ -44,8 +54,9 @@ pv_files <- list.files(path="data", pattern="sunlab-faro-pv", full.names = TRUE)
 df <- rbindlist(lapply(pv_files,fread))
 
 # Select the timestamp and the 'Optimal' readings, then just Power
+# Keep temperature data, as this is important part of efficiency and production
 df <- select(df, "Datetime", contains("Optimal"))
-df <- select(df, "Datetime", contains("Power"))
+# df <- select(df, "Datetime", contains("Power"))
 
 # What times are we working with?
 # Convert to lubridate datetime objects
@@ -60,10 +71,21 @@ df$Month <- month(df$Datetime)
 df$Hour <- hour(df$Datetime)
 time(df$Datetime)
 
-
 # weather data
+weather_files <- list.files(path="data", pattern="meteo", full.names = TRUE)
+meteo <- rbindlist(lapply(weather_files,fread))
+meteo$Datetime <- ymd_hms(meteo$Datetime)
+range(meteo$Datetime)
+# "2014-01-01 00:00:00 UTC" "2018-01-07 23:59:00 UTC"
 
-weather <- read.csv('data/sunlab-faro-meteo-2014.csv', sep = ";")
+# How important is PV board temperature to output?
+m_t <- lm(df$`B_Optimal - Power DC [W]` ~ df$`B_Optimal - Temperature [ºC]`,data=df)
+
+mod_output <- tidy(m_t)
+mod_output
+mod_output$p.value<.05
+
+# Need to control for solar irradiance
 
 
 

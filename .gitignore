@@ -1,5 +1,6 @@
 # Repository specific exclusions ------------------------------------
 data/
+*.csv
 .DS_Store
 
 # R Specific extensions ----------------------------------------------
