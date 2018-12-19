@@ -2,6 +2,9 @@
 data/
 *.csv
 .DS_Store
+group_work_try1.R
+group_work_try2.R
+group_work_try3(with\ weather\ data).R
 
 # R Specific extensions ----------------------------------------------
 
