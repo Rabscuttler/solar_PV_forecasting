@@ -131,3 +131,23 @@ ggplot(sunlab_hour_vary)+
   geom_boxplot(aes(x=as.factor(wind_velocity),
                    y=A_Optimal...Power.DC..W.))+
   facet_wrap(~Hour,nrow=2)
+
+# Zoom in plot to see monthly and daily power curves.
+sunlab_A_slice <- sunlab_A %>% 
+  filter(Datetime > as.Date("2017-07-01")) %>%
+  filter(Datetime < as.Date("2017-08-01"))
+
+ggplot(sunlab_A_slice, aes(Datetime, A_Optimal...Power.DC..W., group=1)) +
+  geom_line(linetype="dotted", alpha=1) +
+  facet_zoom(x = Datetime > as.Date("2017-07-11") & Datetime < as.Date("2017-07-15"),
+             horizontal = FALSE, zoom.size = 0.6)
+
+# Big plots
+# ggplot(sunlab_A, aes(x=Datetime, y=A_Optimal...Power.DC..W., group=1)) + geom_line(linetype="dotted")
+
+# four years total average generation varying with month
+# ggplot(sunlab_A)+geom_boxplot(aes(x=as.factor(Month),y=A_Optimal...Power.DC..W.))
+# four years total average generation varying with hour
+# ggplot(sunlab_A)+geom_boxplot(aes(x=as.factor(Hour),y=A_Optimal...Power.DC..W.))
+# four years total average generation varying with day of year
+# ggplot(sunlab_A)+geom_boxplot(aes(x=as.factor(YDay),y=A_Optimal...Power.DC..W.))

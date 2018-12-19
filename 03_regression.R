@@ -62,28 +62,6 @@
  
 # ridge regression with weather-----------------------------------------
  
- # Zoom in plot to see monthly and daily power curves.
-sunlab_A_slice <- sunlab_A %>% 
-                  filter(Datetime > as.Date("2017-07-01")) %>%
-                  filter(Datetime < as.Date("2017-08-01"))
-
- ggplot(sunlab_A_slice, aes(Datetime, A_Optimal...Power.DC..W., group=1)) +
-   geom_line(linetype="dotted", alpha=1) +
-   facet_zoom(x = Datetime > as.Date("2017-07-11") & Datetime < as.Date("2017-07-15"),
-              horizontal = FALSE, zoom.size = 0.6)
- 
- # BOD1$Time <- factor(BOD1$Time) 
- # ggplot(sunlab_A, aes(x=Datetime, y=A_Optimal...Power.DC..W., group=1)) + geom_line(linetype="dotted")
- 
- # four years total average generation varying with month
- # ggplot(sunlab_A)+geom_boxplot(aes(x=as.factor(Month),y=A_Optimal...Power.DC..W.))
- # four years total average generation varying with hour
- # ggplot(sunlab_A)+geom_boxplot(aes(x=as.factor(Hour),y=A_Optimal...Power.DC..W.))
- # four years total average generation varying with day of year
- # ggplot(sunlab_A)+geom_boxplot(aes(x=as.factor(YDay),y=A_Optimal...Power.DC..W.))
- 
- # March and September got the largest value
- 
 sunlab_A <- filter(sunlab_A,Minute=="10"| Minute=="20"| Minute=="30"| Minute=="40" |Minute=="50" |Minute=="0" )
 
 sunlab_A$Hour <- as.numeric(sunlab_A$Hour)
@@ -95,7 +73,7 @@ sunlab_A$Month <- as.numeric(sunlab_A$Month)
 sunlab_A$month_factor1<-sin(((sunlab_A$Month)/12-0.125)*2*pi)
 sunlab_A$month_factor2<-cos(((sunlab_A$Month)/12-0.125)*2*pi) 
 sunlab_A$month_factor<-apply(sunlab_A[,c("month_factor1", "month_factor2")],1,sum,na.rm=T)
- max(sunlab_A$month_factor)
+max(sunlab_A$month_factor)
 
 sunlab_A$ambient_temperature  <- as.numeric(sunlab_A$ambient_temperature )
 sunlab_A$global_radiation<-sin((sunlab_A$global_radiation/1050)*0.5*pi)

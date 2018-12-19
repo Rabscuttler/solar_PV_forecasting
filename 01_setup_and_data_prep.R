@@ -20,41 +20,51 @@ library(data.table)
 
 # Sunlab - Get Data -------------------------------------------------------
 
-# Download the PV and weather station data
+# Create a data directory if none exists
+if(!dir.exists('data')){dir.create('data')}
+
+# Download all PV and weather data files
+# Use the below script if desired to download files
+# WARNING: rename the 2015 meteo datafile to the same pattern as others.
+
 baseurl = "https://opendata.edp.com/explore/dataset/"
 url_vars = "/download/?format=csv&timezone=GMT&use_labels_for_header=true"
 datasets = c("sunlab-faro-meteo-2017","sunlab-faro-meteo-2016","faro_meteo_2015","sunlab-faro-meteo-2014",
              "sunlab-faro-pv-2017", "sunlab-faro-pv-2016","sunlab-faro-pv-2015","sunlab-faro-pv-2014")
 
-# Create a data directory if none exists
-if(!dir.exists('data')){dir.create('data')}
+# This checks for files against the original downloaded name, 
+# so will redownload meteo_2015 once you have changed the name
 
-# Download all PV and weather data files
-for(name in datasets){
-  # Check if file is already downloaded
-  if(!file.exists(file.path("data", paste(name, ".csv", sep="")))){
-    # If not, download the file
-    print(paste("Downloading file: ", name, ".csv", sep=""))
-    # url <- paste(baseurl, name, url_vars, sep="")
-    # download.file(url, file.path("data", paste(name, ".csv", sep="")))
-  }
-}
+# for(name in datasets){
+#   # Check if file is already downloaded
+#   if(!file.exists(file.path("data", paste(name, ".csv", sep="")))){
+#     # If not, download the file
+#     print(paste("Downloading file: ", name, ".csv", sep=""))
+#     # url <- paste(baseurl, name, url_vars, sep="")
+#     # download.file(url, file.path("data", paste(name, ".csv", sep="")))
+#   }
+# }
 
 # 2018 weather data doesn't want to be downloaded this way: get it manually.
 # https://opendata.edp.com/explore/dataset/sunlab-faro-meteo-2018/export/
 
 # Clear out those variables for a tidy environment
-rm(list=ls())
+rm(list=ls()) 
 
 # Data preparation all years ----------------------------------------------
 
 # Notes
-# Care that faro_meteo_2015.csv does not match other environmental data filenames
+# Care that faro_meteo_2015.csv does not match other environmental data filenames - change it
 # Change 2016 meteo column header Direct -> Diffuse to match other years
 
 # Read all PV data files:
-pv_files <- list.files(path="data", pattern="sunlab-faro-pv", full.names = TRUE)
-df <- rbindlist(lapply(pv_files,fread))
+df <- data.frame()
+for(i in 1:4){
+  k<-(i+2013)
+  file_name=paste("data/sunlab-faro-pv-",k,".csv",sep="")
+  data<-read.csv(file=file_name, stringsAsFactors = FALSE, sep=';')
+  df<-rbind(df,data)
+}
 
 # Prepare pv generation data
 df <- drop_na(df)
@@ -71,22 +81,31 @@ df2 <- select(df, c("Datetime", "Year", "Month", "YDay", "Hour", "Minute"), cont
 sunlab_A <-  select(df2, c("Datetime", "Year", "Month", "YDay", "Hour", "Minute"), contains("A_"))
 sunlab_B <-  select(df2, c("Datetime", "Year", "Month", "YDay", "Hour", "Minute"), contains("B_"))
 
-# Read in all weather data (2014 - 2018)
-weather_files <- list.files(path="data", pattern="meteo", full.names = TRUE)
-meteo <- rbindlist(lapply(weather_files,fread))
+# Read in all weather data (2014 - 2017 - remember we have first week of 2018 too)
+df1 <- data.frame()
+for(i in 1:4){
+  k<-(i+2013)
+  file_name=paste("data/sunlab-faro-meteo-",k,".csv",sep="")
+  data<-read.csv(file=file_name, stringsAsFactors = FALSE, sep=';')
+  df1<-rbind(df1,data)
+}
+meteo <- df1
 meteo$Datetime <- ymd_hms(meteo$Datetime)
+
+# Make weather data names easier to work with
+setnames(meteo, old=c("Ambient.Temperature..ºC.","Global.Radiation..W.m2.","Diffuse.Radiation..W.m2.",
+                      "Ultraviolet..W.m2.","Wind.Velocity..m.s.","Wind.Direction..º.",
+                      "Precipitation..mm.","Atmospheric.pressure..hPa."),
+               new=c("ambient_temperature","global_radiation","diffuse_radiation",
+                     "ultraviolet","wind_velocity","wind_direction",
+                     "precipitation","atmospheric_pressure"))
 
 # Create complete dataset for module A
 sunlab_meteo_A <- meteo[,c(1:7)]
 sunlab_A <- left_join(sunlab_A ,sunlab_meteo_A,by=c("Datetime"="Datetime"))
 
-# Make names easier to work with
-setnames(sunlab_A, old=c("Ambient Temperature [ºC]","Global Radiation [W/m2]","Diffuse Radiation [W/m2]",
-                         "Ultraviolet [W/m2]","Wind Velocity [m/s]","Wind Direction [º]"),
-         new=c("ambient_temperature","global_radiation","diffuse_radiation",
-               "ultraviolet","wind_velocity","wind_direction"))
-# Leave out "Precipitation..mm.","Atmospheric.pressure..hPa. "precipitation","atmospheric_pressure"
-# As they are missing for some years
-
 # Create a dataset of just PV data just for 2017
 sunlab_pv_17 <- filter(df, Year=="2017")
+
+# Create a slice just of 2017
+sunlab_all_2017 <- filter(sunlab_A, Year=="2017")
