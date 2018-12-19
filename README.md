@@ -2,8 +2,8 @@
 
 Group project repository for ESDA 2018 MSc @ UCL: forecasting solar PV output
 
-Suggest we mainly use R for analysis.
+Run the `R` code in `01_setup_and_data_prep.R` to download and prepare the initial data.
 
-Download the sunlab data into a 'data' folder at this project level.
+Subsequent analysis, production of charts etc are in the proceeding files.
 
-Test change
+Code used with R version 3.5.1 (2018-07-02).
