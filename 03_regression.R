@@ -1,3 +1,4 @@
+
 # ridge regression without weather-----------------------------------------
  sunlab_model <- lm(A_Optimal...Power.DC..W. ~ Month+YDay+Hour+Year,
                     data=sunlab_A)

@@ -1,18 +1,25 @@
 library(lattice)
-library(neuralnet)
 library(caret)
-library(glmnet)
-library(lmridge)
-library(ggforce)
 library(psych)
 library(ggExtra)
 library(tidyverse)
 library(corrplot)
 library(forcats)
 library(lubridate)
+library(data.table)
+library(ggforce)
 library(broom)
 library(modelr)
-library(data.table)
+# For ridge regression:
+library(glmnet)
+library(lmridge)
+# For neural network:
+library(neuralnet)
+library(keras)
+# install_keras() 
+# If issues with keras try this: https://github.com/rstudio/keras/issues/147#issuecomment-335990686
+library(magrittr)
+library(mlbench)
 
 ##########################################################################
 # Predicting Solar PV Outputs from weather data - Group Project ESDA 2018
