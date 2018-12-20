@@ -166,20 +166,21 @@ model %>%
 
 # Reduce the data size
 sun_nn <- sunlab_A %>% 
-          filter(Year==2017) %>%
+          # filter(Year==2017) %>%
           filter(Minute=="10"| Minute=="20"| Minute=="30"| Minute=="40" |Minute=="50" |Minute=="0" ) %>%
-          select(YDay, Hour, Minute, A_Optimal...Temperature..ºC., ambient_temperature, 
-                 global_radiation, diffuse_radiation, A_Optimal...Power.DC..W.)
+          select(Year, Month, YDay, Hour, Minute, A_Optimal...Temperature..ºC., ambient_temperature, 
+                 global_radiation, diffuse_radiation, ultraviolet, A_Optimal...Power.DC..W.) %>%
+          drop_na()
 sun_nn <- as.matrix(sun_nn)
 dimnames(sun_nn) <- NULL
 
 # Partition
 set.seed(1234) # Set seed so our results will be the same each time after sampling
 ind <- sample(2, nrow(sun_nn), replace=T, prob=c(.7, .3))
-training <- sun_nn[ind==1, 1:7]
-test <- sun_nn[ind==2, 1:7]
-trainingtarget <- sun_nn[ind==1, 8]
-testtarget <- sun_nn[ind==2, 8]
+training <- sun_nn[ind==1, 1:10]
+test <- sun_nn[ind==2, 1:10]
+trainingtarget <- sun_nn[ind==1, 11]
+testtarget <- sun_nn[ind==2, 11]
 
 # Normalize = (Value - mean) / standard deviation
 m <- colMeans(training)
@@ -190,24 +191,25 @@ test <- scale(test, center = m, scale = s)
 # Create the model
 model <- keras_model_sequential()
 model %>%
-  layer_dense(units = 100, activation = 'relu', input_shape= c(7)) %>%
-  layer_dropout(rate=0.4) %>%
-  layer_dense(units = 50, activation = 'relu') %>%
-  layer_dropout(rate=0.3) %>%
-  layer_dense(units = 20, activation = 'relu') %>%
-  layer_dropout(rate=0.2) %>%
+  layer_dense(units = 100, activation = 'relu', input_shape= c(10)) %>%
+  layer_dropout(rate=0.5) %>%
+  layer_dense(units = 100, activation = 'relu') %>%
+  layer_dropout(rate=0.5) %>%
+  layer_dense(units = 100, activation = 'relu') %>%
+  layer_dropout(rate=0.5) %>%
+  layer_dense(units = 100, activation = 'relu') %>%
   layer_dense(units = 1)
 
 # Compile
 model %>% compile(loss = 'mse',
-                  optimizer = 'rmsprop',
+                  optimizer = optimizer_rmsprop(lr=0.001),
                   metric = 'mae')
 
 # Fit model
 mymodel <- model %>% 
   fit(training, 
       trainingtarget,
-      epochs = 50,
+      epochs = 25,
       batch_size = 32,
       validation_split = 0.2)
 
