@@ -1,62 +1,155 @@
 # Neural network try 1 -------------------------------------------------------
 
-# data cleaning
+sunlab_pv <-read.csv("sunlab-faro-pv-2017.csv", stringsAsFactors = F,sep=';')
+sunlab_pv$Datetime <- ymd_hms(sunlab_pv$Datetime)
+sunlab_pv$Date <- as_date(sunlab_pv$Datetime)
+sunlab_pv$Year <- year(sunlab_pv$Datetime)
+sunlab_pv$Month <- month(sunlab_pv$Datetime, label = TRUE)
+#month day
+sunlab_pv$MDay <- mday(sunlab_pv$Datetime)
+sunlab_pv$Hour <- hour(sunlab_pv$Datetime)
+sunlab_pv$Minute <- minute(sunlab_pv$Datetime)
+sunlab_pv <- sunlab_pv[,c(1,26:31,2:25)]
+tail(sunlab_pv)
+sunlab_pv$YDay <- yday(sunlab_pv$Datetime)
+
+sunlab_meteo <-read.csv("sunlab-faro-meteo-2017.csv", stringsAsFactors = F,sep=';')
+sunlab_meteo$Datetime <- ymd_hms(sunlab_meteo$Datetime)
+
+sunlab_all <- left_join(sunlab_pv ,sunlab_meteo,by=c("Datetime"="Datetime"))
+colnames(sunlab_all)[33] <- "ambient_temperature"
+colnames(sunlab_all)[34] <- "global_radiatione"
+colnames(sunlab_all)[35] <- "diffuse_radiation"
+colnames(sunlab_all)[36] <- "ultraviolet"
+colnames(sunlab_all)[37] <- "wind_velocity"
+colnames(sunlab_all)[38] <- "wind_direction"
+colnames(sunlab_all)[39] <- "precipitation"
+colnames(sunlab_all)[40] <- "atmospheric_pressure"
+
+sunlab_neural<-sunlab_all
+sunlab_neural$Hour <- as.numeric(sunlab_neural$Hour)
+sunlab_neural$hour_factor<-sin(((sunlab_neural$Hour-5)/14)*2*pi-0.5*pi)
+
+sunlab_neural$YDay <- as.numeric(sunlab_neural$YDay)
+sunlab_neural$YDay<-cos(((sunlab_neural$YDay-95)/365)*2*pi)
+
+sunlab_neural$Month <- as.numeric(sunlab_neural$Month)
+sunlab_neural$month_factor1<-sin(((sunlab_neural$Month)/12-0.125)*2*pi)
+sunlab_neural$month_factor2<-cos(((sunlab_neural$Month)/12-0.125)*2*pi) 
+sunlab_neural$month_factor<-apply(sunlab_neural[,c(42,43)],1,sum,na.rm=T)
+
+
+sunlab_neural$ambient_temperature  <- as.numeric(sunlab_neural$ambient_temperature )
+sunlab_neural$global_radiatione<-sin((sunlab_neural$global_radiatione/1050)*0.5*pi)
+sunlab_neural$diffuse_radiation <- as.numeric(sunlab_neural$diffuse_radiation ) 
+sunlab_neural$ultraviolet<-sin((sunlab_neural$ultraviolet/66)*0.5*pi) 
+# sunlab_all$wind_velocity <- round(sunlab_all$wind_velocity*5)
+# sunlab_all$wind_direction <- round(sunlab_all$wind_direction/10)
+sunlab_neural$precipitation <- as.numeric(sunlab_neural$precipitation)
+sunlab_neural$atmospheric_pressure <- (sunlab_neural$atmospheric_pressure-1000)
+
+
+
 # normalise function
 normalise <- function(x) {
   return((x - min(x)) / (max(x) - min(x)))
 }
-sunlab_Neural <- drop_na(sunlab_pv)
-sunlab_Neural$Month <- as.numeric(sunlab_Neural$Month)
+sunlab_neural <- drop_na(sunlab_neural)
+sunlab_neural <- filter(sunlab_neural, Minute=="0"| Minute=="20"|Minute=="40" )
 
-# Why this step?
-sunlab_Neural <- filter(sunlab_Neural,Month=="1"| Month=="2")
+# twice data size will makes the process extremely slow
+# |Minute=="10"|Minute=="30"|Minute=="50"
 
-# Why this step?
-sunlab_Neural <- filter(sunlab_Neural,Minute=="10"| Minute=="20"| Minute=="30"|
-                          Minute=="40" |Minute=="50" |Minute=="0" )
-# set as normal value
-sunlab_norm <- as.data.frame(lapply(
-  select(sunlab_Neural,-c(1:3,20:31)),normalise))
+sunlab_norm<-sunlab_neural[,c(44,32,41,7,33:40,13)]
+# Datetime<-sunlab_neural[,c(1)]
+# normalise the data
+sunlab_norm <- as.data.frame(lapply(sunlab_norm,normalise))
+# sunlab_norm$Datetime<-Datetime
 
-sunlab_reduced<- sunlab_norm[c(1:4,7,10,13)]
-
-# Why?
 # to reduce the size of data
-sunlab_small <- filter(sunlab_reduced,Minute=="0" )
+# sunlab_norm <- filter(sunlab_norm,Minute=="0" )
+# sunlab_norm<-sunlab_norm [,-c(4)]
 
-# Create training and test data
-set.seed(123)
-test_sample <- sample(dim(sunlab_small)[1], dim(sunlab_small)[1] * 0.3)
-sunlab_test <- sunlab_reduced[test_sample, ]
-sunlab_train <- sunlab_reduced[-test_sample, ]
 
-f <- reformulate(names(sunlab_small[,1:3]),
+test_sample <- sample(dim(sunlab_norm)[1], dim(sunlab_norm)[1] * 0.3)
+sunlab_test <- sunlab_norm[test_sample, ]
+sunlab_train <- sunlab_norm[-test_sample, ]
+
+
+f <- reformulate(names(sunlab_norm[,1:12]),
                  response = "A_Optimal...Power.DC..W.")
-# Note hidden = 5!
-#stepmax???ಽ??
+
+# stepmax need to be enlarged here 
+# reference running time: 18-25 min for desktop
 neural_network <- neuralnet(formula = f,
                             data = sunlab_train,
                             stepmax = 1e+08,
-                            hidden = c(4,3),
-                            act.fct = "logistic")
+                            hidden = c(6,4),
+                            linear.output=T)
 
-
-#active function???߼??ع?
-
-nn <- compute(neural_network,sunlab_test[,-3])$net.result
-
-head(nn)
-nn <- round(nn)
-
-#????????
-confusion <- table(nn, volta_test$appliance)
-#׼ȷ??p
-accuracy <- sum(diag(confusion))/sum(confusion)
-
-#??????????????????ÿ????��?????ӣ?????Խ��ԽС
-#???????ӣ?????ʱ?????ӣ?׼ȷ??????
-#active function?????ı?׼ȷ??̫??
 plot(neural_network)
+
+
+######## for test dataset
+
+pred <- compute(neural_network,sunlab_test[,1:12])$net.result
+# the calculation of R square
+mean<-0
+for (i in seq_along(pred)){
+  mean<- mean+sunlab_test$A_Optimal...Power.DC..W.[i]}
+mean<-mean/length(pred)
+
+tot<-0
+for (i in seq_along(pred)){
+  tot<- tot+(sunlab_test$A_Optimal...Power.DC..W.[i]-mean)^2}
+
+res<-0
+for (i in seq_along(pred)){
+  res<- res+(sunlab_test$A_Optimal...Power.DC..W.[i]-pred[i])^2}
+
+R_square<- (1-res/tot)
+R_square
+
+
+####### test for a random month (the comparison plot is obvious for concentrated data)
+
+neural_test1 <- sunlab_neural
+datatime<-neural_test1[,c(1)]
+Month<-neural_test1[,c(4)]
+neural_test1<-neural_test1[,c(44,32,41,7,33:40,13)]
+neural_test1 <- as.data.frame(lapply(neural_test1,normalise))
+neural_test1$Datetime <-datatime 
+neural_test1$Month <-Month 
+# neural_test1 <- filter(neural_test1,Minute=="0")
+# neural_test1<-neural_test1 [,-c(4)]
+
+pred1 <- compute(neural_network,neural_test1[,1:12])$net.result
+neural_test1$pred1 <- pred1
+neural_test1$pred1<-as.numeric(neural_test1$pred1)
+
+neural_test_month <- filter(neural_test1,Month=="10")
+
+ggplot( neural_test_month )+
+  geom_point(aes(x=Datetime,y=A_Optimal...Power.DC..W.))+
+  geom_point(aes(x=Datetime,y=pred1),col='red')+
+  theme_bw()
+
+# the calculation of R square
+mean1<-0
+for (i in seq_along(pred1)){
+  mean1<- mean1+neural_test1$A_Optimal...Power.DC..W.[i]}
+mean1<-mean1/length(pred1)
+
+tot1<-0
+for (i in seq_along(pred1)){
+  tot1<- tot1+(neural_test1$A_Optimal...Power.DC..W.[i]-mean1)^2}
+
+res1<-0
+for (i in seq_along(pred1)){
+  res1<- res1+(neural_test1$A_Optimal...Power.DC..W.[i]-pred1[i])^2}
+
+R_square1<- (1-res1/tot1)
+R_square1
 
 
 
