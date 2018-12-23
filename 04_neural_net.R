@@ -218,4 +218,6 @@ model %>% evaluate(test, testtarget)
 pred <- model %>% predict(test)
 plot(testtarget, pred) # Plot predictions and data - want diagonal line for perfect predictions
 
+?predict
+
 

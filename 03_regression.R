@@ -68,26 +68,26 @@ sunlab_A <- filter(sunlab_A,Minute=="10"| Minute=="20"| Minute=="30"| Minute=="4
 sunlab_A$Hour <- as.numeric(sunlab_A$Hour)
 max(sunlab_A$Hour)
 min(sunlab_A$Hour)
-sunlab_A$hour_factor<-sin(((sunlab_A$Hour-5)/14)*2*pi-0.5*pi)
 
+# Linearise the data
+sunlab_A$hour_factor<-sin(((sunlab_A$Hour-5)/14)*2*pi-0.5*pi)
 sunlab_A$Month <- as.numeric(sunlab_A$Month)
 sunlab_A$month_factor1<-sin(((sunlab_A$Month)/12-0.125)*2*pi)
 sunlab_A$month_factor2<-cos(((sunlab_A$Month)/12-0.125)*2*pi) 
 sunlab_A$month_factor<-apply(sunlab_A[,c("month_factor1", "month_factor2")],1,sum,na.rm=T)
 max(sunlab_A$month_factor)
 
+# Normalise the data
 sunlab_A$ambient_temperature  <- as.numeric(sunlab_A$ambient_temperature )
 sunlab_A$global_radiation<-sin((sunlab_A$global_radiation/1050)*0.5*pi)
 sunlab_A$diffuse_radiation <- as.numeric(sunlab_A$diffuse_radiation ) 
 sunlab_A$ultraviolet<-sin((sunlab_A$ultraviolet/66)*0.5*pi) 
-
 sunlab_A$wind_velocity <- round(sunlab_A$wind_velocity*5)
 sunlab_A$wind_direction <- round(sunlab_A$wind_direction/10)
 # sunlab_A$precipitation <- round(sunlab_A$precipitation)
 # sunlab_A$atmospheric_pressure <- (sunlab_A$atmospheric_pressure-1000)
  
  setnames(sunlab_A, old="A_Optimal...Temperature..ºC.", new="Optimal_Temperature")
-
  sunlab_A <- drop_na(sunlab_A)
   
  sunlab_model <- lm(A_Optimal...Power.DC..W. ~ 
@@ -101,7 +101,7 @@ sunlab_A$wind_direction <- round(sunlab_A$wind_direction/10)
  mod_output
  mod_output$p.value<.05
  glance(sunlab_model)
-
+ 
 # Ridge regression 
 sunlab_A <- filter(sunlab_A, Year==2014)
 

@@ -98,6 +98,10 @@ for(i in 1:4){
 }
 meteo <- df1
 meteo$Datetime <- ymd_hms(meteo$Datetime)
+meteo$Year <- year(meteo$Datetime)
+
+meteo %>%
+  groupby(Year, )
 
 # Make weather data names easier to work with
 setnames(meteo, old=c("Ambient.Temperature..ºC.","Global.Radiation..W.m2.","Diffuse.Radiation..W.m2.",
