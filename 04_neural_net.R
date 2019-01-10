@@ -103,7 +103,7 @@ res<-0
 for (i in seq_along(pred)){
   res<- res+(sunlab_test$A_Optimal...Power.DC..W.[i]-pred[i])^2}
 
-R_square<- (1-res/tot)
+R_square <- (1-res/tot)
 R_square
 # 0.9129906844
 
