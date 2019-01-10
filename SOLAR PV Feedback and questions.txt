@@ -1,0 +1,16 @@
+SOLAR PV Feedback and questions
+===============================
+
+Model using minute generation versus model doing sum of daily generation?
+Simple vs high fidelity?
+
+Agree a clean datset with the other group
+Do London solar dataset with other group.
+
+Jacob: module temperature is really important for efficiency and output.
+Make sure temp is a core part of our analysis.
+
+Wind data source:
+Crown Data Estate
+
+Jacob, Simon & : using DarkSky api, may be useful to us for weather forecasts

@@ -1,10 +1,10 @@
 # Neural network try 1 -------------------------------------------------------
 
-sunlab_pv <-read.csv("sunlab-faro-pv-2017.csv", stringsAsFactors = F,sep=';')
+sunlab_pv <-read.csv("data/sunlab-faro-pv-2017.csv", stringsAsFactors = F,sep=';')
 sunlab_pv$Datetime <- ymd_hms(sunlab_pv$Datetime)
 sunlab_pv$Date <- as_date(sunlab_pv$Datetime)
 sunlab_pv$Year <- year(sunlab_pv$Datetime)
-sunlab_pv$Month <- month(sunlab_pv$Datetime, label = TRUE)
+sunlab_pv$Month <- month(sunlab_pv$Datetime)
 #month day
 sunlab_pv$MDay <- mday(sunlab_pv$Datetime)
 sunlab_pv$Hour <- hour(sunlab_pv$Datetime)
@@ -13,7 +13,7 @@ sunlab_pv <- sunlab_pv[,c(1,26:31,2:25)]
 tail(sunlab_pv)
 sunlab_pv$YDay <- yday(sunlab_pv$Datetime)
 
-sunlab_meteo <-read.csv("sunlab-faro-meteo-2017.csv", stringsAsFactors = F,sep=';')
+sunlab_meteo <-read.csv("data/sunlab-faro-meteo-2017.csv", stringsAsFactors = F,sep=';')
 sunlab_meteo$Datetime <- ymd_hms(sunlab_meteo$Datetime)
 
 sunlab_all <- left_join(sunlab_pv ,sunlab_meteo,by=c("Datetime"="Datetime"))
@@ -48,8 +48,6 @@ sunlab_neural$ultraviolet<-sin((sunlab_neural$ultraviolet/66)*0.5*pi)
 sunlab_neural$precipitation <- as.numeric(sunlab_neural$precipitation)
 sunlab_neural$atmospheric_pressure <- (sunlab_neural$atmospheric_pressure-1000)
 
-
-
 # normalise function
 normalise <- function(x) {
   return((x - min(x)) / (max(x) - min(x)))
@@ -70,7 +68,6 @@ sunlab_norm <- as.data.frame(lapply(sunlab_norm,normalise))
 # sunlab_norm <- filter(sunlab_norm,Minute=="0" )
 # sunlab_norm<-sunlab_norm [,-c(4)]
 
-
 test_sample <- sample(dim(sunlab_norm)[1], dim(sunlab_norm)[1] * 0.3)
 sunlab_test <- sunlab_norm[test_sample, ]
 sunlab_train <- sunlab_norm[-test_sample, ]
@@ -87,8 +84,7 @@ neural_network <- neuralnet(formula = f,
                             hidden = c(6,4),
                             linear.output=T)
 
-plot(neural_network)
-
+plot(neural_network,fontsize = 8)
 
 ######## for test dataset
 
@@ -109,7 +105,7 @@ for (i in seq_along(pred)){
 
 R_square<- (1-res/tot)
 R_square
-
+# 0.9129906844
 
 ####### test for a random month (the comparison plot is obvious for concentrated data)
 
@@ -129,10 +125,18 @@ neural_test1$pred1<-as.numeric(neural_test1$pred1)
 
 neural_test_month <- filter(neural_test1,Month=="10")
 
+# Plot prediction
 ggplot( neural_test_month )+
-  geom_point(aes(x=Datetime,y=A_Optimal...Power.DC..W.))+
-  geom_point(aes(x=Datetime,y=pred1),col='red')+
+  geom_line(aes(x=Datetime,y=A_Optimal...Power.DC..W., alpha=0.5))+
+  geom_line(aes(x=Datetime,y=pred1),col='red', alpha=0.5)+
   theme_bw()
+
+# Zoom Plot
+ggplot( neural_test_month )+
+  geom_line(aes(x=Datetime,y=A_Optimal...Power.DC..W., group=1, alpha=0.5))+
+  geom_line(aes(x=Datetime,y=pred1),col='red', alpha=0.5)+
+  theme_bw() + 
+  facet_zoom(x=Datetime >as.Date("2017-10-12") & Datetime < as.Date("2017-10-17"))
 
 # the calculation of R square
 mean1<-0
@@ -261,7 +265,7 @@ model %>%
 sun_nn <- sunlab_A %>% 
           # filter(Year==2017) %>%
           filter(Minute=="10"| Minute=="20"| Minute=="30"| Minute=="40" |Minute=="50" |Minute=="0" ) %>%
-          select(Year, Month, YDay, Hour, Minute, A_Optimal...Temperature..ºC., ambient_temperature, 
+          select(Year, Month, YDay, Hour, Minute, Optimal_Temperature, ambient_temperature, 
                  global_radiation, diffuse_radiation, ultraviolet, A_Optimal...Power.DC..W.) %>%
           drop_na()
 sun_nn <- as.matrix(sun_nn)
