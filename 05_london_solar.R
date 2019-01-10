@@ -16,3 +16,4 @@ unique(feeders$Substation)
 
 # Looks like we've got Elm Crescent (92kW), Forest Road (95kW) and YMCA (25kW)
 # "Forest Road",  "Elm Crescent", "YMCA"
+

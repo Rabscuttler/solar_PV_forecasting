@@ -1,4 +1,3 @@
-
 # ridge regression without weather-----------------------------------------
  sunlab_model <- lm(A_Optimal...Power.DC..W. ~ Month+YDay+Hour+Year,
                     data=sunlab_A)
@@ -63,11 +62,9 @@
  
 # ridge regression with weather-----------------------------------------
  
+# Prepare
 sunlab_A <- filter(sunlab_A,Minute=="10"| Minute=="20"| Minute=="30"| Minute=="40" |Minute=="50" |Minute=="0" )
-
 sunlab_A$Hour <- as.numeric(sunlab_A$Hour)
-max(sunlab_A$Hour)
-min(sunlab_A$Hour)
 
 # Linearise the data
 sunlab_A$hour_factor<-sin(((sunlab_A$Hour-5)/14)*2*pi-0.5*pi)
@@ -78,83 +75,85 @@ sunlab_A$month_factor<-apply(sunlab_A[,c("month_factor1", "month_factor2")],1,su
 max(sunlab_A$month_factor)
 
 # Normalise the data
-sunlab_A$ambient_temperature  <- as.numeric(sunlab_A$ambient_temperature )
-sunlab_A$global_radiation<-sin((sunlab_A$global_radiation/1050)*0.5*pi)
+sunlab_A$ambient_temperature  <- as.numeric(sunlab_A$ambient_temperature) 
+sunlab_A$ambient_temperature  <- (621.9*sin(0.005941*sunlab_A$ambient_temperature-0.02528)+ 47.3*sin(0.08446*sunlab_A$ambient_temperature-0.1815) )                                          
+sunlab_A$global_radiation<- (527.9*sin(sunlab_A$global_radiation*0.00229+0.1611)+393.3*sin(sunlab_A$global_radiation*0.002521+3.334))
 sunlab_A$diffuse_radiation <- as.numeric(sunlab_A$diffuse_radiation ) 
-sunlab_A$ultraviolet<-sin((sunlab_A$ultraviolet/66)*0.5*pi) 
+sunlab_A$diffuse_radiation <- (1243*sin(0.006054*sunlab_A$diffuse_radiation-0.9234) +1126*sin(0.006491*sunlab_A$diffuse_radiation+2.039))
+sunlab_A$ultraviolet<- 169.7*sin(sunlab_A$ultraviolet*0.02647+0.02187) 
 sunlab_A$wind_velocity <- round(sunlab_A$wind_velocity*5)
 sunlab_A$wind_direction <- round(sunlab_A$wind_direction/10)
 sunlab_A$precipitation <- round(sunlab_A$precipitation)
 sunlab_A$atmospheric_pressure <- (sunlab_A$atmospheric_pressure-1000)
- 
 setnames(sunlab_A, old="A_Optimal...Temperature..ºC.", new="Optimal_Temperature")
 sunlab_A <- drop_na(sunlab_A)
   
- sunlab_model <- lm(A_Optimal...Power.DC..W. ~ 
-                      month_factor+YDay+hour_factor+Minute+Year+Optimal_Temperature+
-                      ambient_temperature+global_radiation+diffuse_radiation+
-                      ultraviolet + precipitation + atmospheric_pressure,
-                    data=sunlab_A)
+sunlab_model <- lm(A_Optimal...Power.DC..W. ~ 
+                    month_factor+YDay+hour_factor+Minute+Year+Optimal_Temperature+
+                    ambient_temperature+global_radiation+diffuse_radiation+
+                    ultraviolet + precipitation + atmospheric_pressure,
+                  data=sunlab_A)
  
- #find the key values
- mod_output <- tidy(sunlab_model)
- mod_output
- mod_output$p.value<.05
- glance(sunlab_model)
+#find the key values
+mod_output <- tidy(sunlab_model)
+mod_output
+mod_output$p.value<.05
+glance(sunlab_model)
  
 # Ridge regression 
 
- A<- sunlab_A[,c("Year","Month","YDay","Hour","ambient_temperature","global_radiation",
+A<- sunlab_A[,c("Year","Month","YDay","Hour","ambient_temperature","global_radiation",
                                  "diffuse_radiation","ultraviolet","wind_velocity","wind_direction",
                                  "Optimal_Temperature","hour_factor", "month_factor", 
                                   "precipitation", "atmospheric_pressure")]
- x <- as.matrix(A)
- y <- sunlab_A[,9]
- #alpha=0 means ridge regression
- ridge <- glmnet(x, y, family = "gaussian", alpha = 0)
- print(ridge)
+x <- as.matrix(A)
+y <- sunlab_A[,9]
+#alpha=0 means ridge regression
+ridge <- glmnet(x, y, family = "gaussian", alpha = 0)
+print(ridge)
 
- tidy(ridge)
- glance(ridge)
- summary(ridge)
+tidy(ridge)
+glance(ridge)
+summary(ridge)
+
+# pR2 = 1 - mod$deviance / mod$null.deviance # works for glm
+# pr2 = sum(1 - ridge$dev.ratio / ridge$nulldev)
+# pr2
  
- # pR2 = 1 - mod$deviance / mod$null.deviance # works for glm
- # pr2 = sum(1 - ridge$dev.ratio / ridge$nulldev)
- # pr2
- 
- # the value of punishment tiem as x label 
- plot(ridge,label=TRUE)
- # the logarithmic form of lambda as x label
- plot(ridge,xvar="lambda",label=TRUE)
- 
- # find the optimum value
- cvfit = cv.glmnet(x, y)
- plot(cvfit)
- 
- # min value and 1st standard error value
- cvfit$lambda.min
- cvfit$lambda.1se
- log(cvfit$lambda.1se)
- 
- # the intercept and cofficients of 1 standard error method
- ridge.coef.1se <- coef(cvfit, s = "lambda.1se")
- round(ridge.coef.1se,2)
- 
- # the intercept and cofficients of min method
- ridge.coef.min <- coef(cvfit, s = "lambda.min")
- round(ridge.coef.min,2)
+# the value of punishment tiem as x label 
+plot(ridge,label=TRUE)
+# the logarithmic form of lambda as x label
+plot(ridge,xvar="lambda",label=TRUE)
+
+# find the optimum value
+cvfit = cv.glmnet(x, y)
+plot(cvfit)
+
+# min value and 1st standard error value
+cvfit$lambda.min
+cvfit$lambda.1se
+log(cvfit$lambda.1se)
+
+# the intercept and cofficients of 1 standard error method
+ridge.coef.1se <- coef(cvfit, s = "lambda.1se")
+round(ridge.coef.1se,2)
+
+# the intercept and cofficients of min method
+ridge.coef.min <- coef(cvfit, s = "lambda.min")
+round(ridge.coef.min,2)
 
  
- # predict the generation values to show the effect of min method and 
- # 1 standard error method
- s <- predict(cvfit,x,s="lambda.min")
- r <- predict(cvfit,x,s="lambda.1se")
- 
- sunlab_A$min <- s
- sunlab_A$fst <- r
- sunlab_pred <- sunlab_A[,c(1:6,9,23,24)]
- 
- # test the result
+# predict the generation values to show the effect of min method and 
+# 1 standard error method
+s <- predict(cvfit,x,s="lambda.min")
+r <- predict(cvfit,x,s="lambda.1se")
+
+sunlab_A$min <- s
+sunlab_A$fst <- r
+# sunlab_pred <- sunlab_A[,c(1:6,9,23,24)]
+sunlab_pred <- sunlab_A[,c("Datetime", "Year", "Month", "YDay","Hour","Minute", "A_Optimal...Power.DC..W.", "min", "fst")]
+
+# test the result
 test <- sample(dim( sunlab_pred)[1], dim( sunlab_pred)[1] * 0.01)
 sunlab_pred1 <- sunlab_pred[test, ]
 
@@ -180,7 +179,7 @@ ggplot(sunlab_pred1)+
 ggplot(sunlab_pred1) +
   geom_line(aes(x=Datetime,y=A_Optimal...Power.DC..W.), linetype="dotted", alpha=1) +
   geom_line(aes(x=Datetime,y=fst),col='red', alpha=1) +
-  facet_zoom(x = Datetime > as.Date("2017-04-11") & Datetime < as.Date("2017-04-13"),
+  facet_zoom(x = Datetime > as.Date("2017-04-27") & Datetime < as.Date("2017-05-01"),
               horizontal = FALSE, zoom.size = 0.6)
  
 # sunlab_A %>% filter(Datetime > as_date("2017-04-01") & Datetime < as_date("2017-04-05")) %>%
@@ -225,6 +224,10 @@ ggplot(pred2)+
 ggplot(pred2)+
   geom_point()+
   theme_bw()
+
+
+
+
 
 
 
