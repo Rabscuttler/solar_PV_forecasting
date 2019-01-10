@@ -100,9 +100,6 @@ meteo <- df1
 meteo$Datetime <- ymd_hms(meteo$Datetime)
 meteo$Year <- year(meteo$Datetime)
 
-meteo %>%
-  groupby(Year, )
-
 # Make weather data names easier to work with
 setnames(meteo, old=c("Ambient.Temperature..ºC.","Global.Radiation..W.m2.","Diffuse.Radiation..W.m2.",
                       "Ultraviolet..W.m2.","Wind.Velocity..m.s.","Wind.Direction..º.",
@@ -112,7 +109,7 @@ setnames(meteo, old=c("Ambient.Temperature..ºC.","Global.Radiation..W.m2.","Dif
                      "precipitation","atmospheric_pressure"))
 
 # Create complete dataset for module A
-sunlab_meteo_A <- meteo[,c(1:7)]
+sunlab_meteo_A <- meteo[,c(1:9)]
 sunlab_A <- left_join(sunlab_A ,sunlab_meteo_A,by=c("Datetime"="Datetime"))
 
 # Create a dataset of just PV data just for 2017

@@ -84,16 +84,16 @@ sunlab_A$diffuse_radiation <- as.numeric(sunlab_A$diffuse_radiation )
 sunlab_A$ultraviolet<-sin((sunlab_A$ultraviolet/66)*0.5*pi) 
 sunlab_A$wind_velocity <- round(sunlab_A$wind_velocity*5)
 sunlab_A$wind_direction <- round(sunlab_A$wind_direction/10)
-# sunlab_A$precipitation <- round(sunlab_A$precipitation)
-# sunlab_A$atmospheric_pressure <- (sunlab_A$atmospheric_pressure-1000)
+sunlab_A$precipitation <- round(sunlab_A$precipitation)
+sunlab_A$atmospheric_pressure <- (sunlab_A$atmospheric_pressure-1000)
  
- setnames(sunlab_A, old="A_Optimal...Temperature..ºC.", new="Optimal_Temperature")
- sunlab_A <- drop_na(sunlab_A)
+setnames(sunlab_A, old="A_Optimal...Temperature..ºC.", new="Optimal_Temperature")
+sunlab_A <- drop_na(sunlab_A)
   
  sunlab_model <- lm(A_Optimal...Power.DC..W. ~ 
                       month_factor+YDay+hour_factor+Minute+Year+Optimal_Temperature+
                       ambient_temperature+global_radiation+diffuse_radiation+
-                      ultraviolet,
+                      ultraviolet + precipitation + atmospheric_pressure,
                     data=sunlab_A)
  
  #find the key values
@@ -103,13 +103,13 @@ sunlab_A$wind_direction <- round(sunlab_A$wind_direction/10)
  glance(sunlab_model)
  
 # Ridge regression 
-sunlab_A <- filter(sunlab_A, Year==2014)
 
  A<- sunlab_A[,c("Year","Month","YDay","Hour","ambient_temperature","global_radiation",
                                  "diffuse_radiation","ultraviolet","wind_velocity","wind_direction",
-                                 "Optimal_Temperature","hour_factor", "month_factor")]
+                                 "Optimal_Temperature","hour_factor", "month_factor", 
+                                  "precipitation", "atmospheric_pressure")]
  x <- as.matrix(A)
- y <- sunlab_A[,12]
+ y <- sunlab_A[,9]
  #alpha=0 means ridge regression
  ridge <- glmnet(x, y, family = "gaussian", alpha = 0)
  print(ridge)
@@ -152,21 +152,21 @@ sunlab_A <- filter(sunlab_A, Year==2014)
  
  sunlab_A$min <- s
  sunlab_A$fst <- r
- sunlab_pred <- sunlab_A[,c(1:6,12,31,32)]
+ sunlab_pred <- sunlab_A[,c(1:6,9,23,24)]
  
  # test the result
- # test <- sample(dim( sunlab_pred)[1], dim( sunlab_pred)[1] * 0.01)
- # sunlab_pred1 <- sunlab_pred[test, ]
+test <- sample(dim( sunlab_pred)[1], dim( sunlab_pred)[1] * 0.01)
+sunlab_pred1 <- sunlab_pred[test, ]
 
- sunlab_pred$min <- as.numeric(sunlab_pred$min)
- sunlab_pred$fst <- as.numeric(sunlab_pred$fst)
+sunlab_pred$min <- as.numeric(sunlab_pred$min)
+sunlab_pred$fst <- as.numeric(sunlab_pred$fst)
  
  # choose the test data group
- sunlab_pred1 <- filter(sunlab_pred,Year=="2017",Month=="4")
+sunlab_pred1 <- filter(sunlab_pred,Year=="2017",Month=="4")
 
  # the Visualization
  # min method
- ggplot( sunlab_pred1 )+
+ggplot(sunlab_pred1)+
    geom_point(aes(x=Datetime,y=A_Optimal...Power.DC..W.), alpha=0.6)+
    geom_point(aes(x=Datetime,y=min),col='red', alpha=0.6)+
    theme_bw() 
@@ -177,35 +177,45 @@ sunlab_A <- filter(sunlab_A, Year==2014)
    geom_point(aes(x=Datetime,y=fst),col='red')+
    theme_bw()
  
- # after check, the min method and 1st method is similar in this situation.
+ggplot(sunlab_pred1) +
+  geom_line(aes(x=Datetime,y=A_Optimal...Power.DC..W.), linetype="dotted", alpha=1) +
+  geom_line(aes(x=Datetime,y=fst),col='red', alpha=1) +
+  facet_zoom(x = Datetime > as.Date("2017-04-11") & Datetime < as.Date("2017-04-13"),
+              horizontal = FALSE, zoom.size = 0.6)
+ 
+# sunlab_A %>% filter(Datetime > as_date("2017-04-01") & Datetime < as_date("2017-04-05")) %>%
+#   select(A_Optimal...Power.DC..W., Datetime) %>%
+#   ggplot(aes(x=Datetime, y=A_Optimal...Power.DC..W.)) + geom_line()
+
+ 
+# after check, the min method and 1st method is similar in this situation.
  
 
 # Ridge Using lmridge package ---------------------------------------------
- sunlab_R <- sunlab_A %>%
+sunlab_R <- sunlab_A %>%
    filter(Year==2014) %>%
    filter(Hour==12)
 
- sunlab_R <- drop_na(sunlab_R)
+sunlab_R <- drop_na(sunlab_R)
   
- mod <- lmridge(A_Optimal...Power.DC..W. ~ 
+mod <- lmridge(A_Optimal...Power.DC..W. ~ 
                    YDay +Minute+Optimal_Temperature+
                    ambient_temperature+global_radiation+diffuse_radiation+
                    ultraviolet,
                    data=sunlab_R, K = seq(0, 0.1, 0.01), scaling = "sc")
 
-?lmridge
-?rstats1
-
-plot(mod)
+# plot(mod)
  
-rstats1(mod)
+# rstats1(mod)
 
 pred2 <-  predict(mod)
 
 # choose the test data group
-pred2 <- filter(pred2,Year=="2017",Month=="1")
+pred2 <- filter(pred2, Year=="2017",Month=="1")
 
-# the Visualization
+pred2
+
+filter# the Visualization
 # min method
 ggplot(pred2)+
   geom_point(aes(x=Datetime,y=A_Optimal...Power.DC..W.), alpha=0.6)+
