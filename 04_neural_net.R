@@ -271,7 +271,7 @@ sun_nn <- sunlab_A %>%
 sun_nn <- as.matrix(sun_nn)
 dimnames(sun_nn) <- NULL
 
-# Partition
+# Partition - this is random - make it date based
 set.seed(1234) # Set seed so our results will be the same each time after sampling
 ind <- sample(2, nrow(sun_nn), replace=T, prob=c(.7, .3))
 training <- sun_nn[ind==1, 1:10]
@@ -293,8 +293,6 @@ model %>%
   layer_dense(units = 100, activation = 'relu') %>%
   layer_dropout(rate=0.5) %>%
   layer_dense(units = 100, activation = 'relu') %>%
-  layer_dropout(rate=0.5) %>%
-  layer_dense(units = 100, activation = 'relu') %>%
   layer_dense(units = 1)
 
 # Compile
@@ -306,7 +304,7 @@ model %>% compile(loss = 'mse',
 mymodel <- model %>% 
   fit(training, 
       trainingtarget,
-      epochs = 25,
+      epochs = 50,
       batch_size = 32,
       validation_split = 0.2)
 

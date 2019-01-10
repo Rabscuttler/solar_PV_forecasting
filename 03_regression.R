@@ -89,7 +89,7 @@ setnames(sunlab_A, old="A_Optimal...Temperature..ºC.", new="Optimal_Temperature
 sunlab_A <- drop_na(sunlab_A)
   
 sunlab_model <- lm(A_Optimal...Power.DC..W. ~ 
-                    month_factor+YDay+hour_factor+Minute+Year+Optimal_Temperature+
+                    YDay+hour_factor+Minute+Year+Optimal_Temperature+
                     ambient_temperature+global_radiation+diffuse_radiation+
                     ultraviolet + precipitation + atmospheric_pressure,
                   data=sunlab_A)
@@ -99,7 +99,12 @@ mod_output <- tidy(sunlab_model)
 mod_output
 mod_output$p.value<.05
 glance(sunlab_model)
- 
+
+corPlot(select(sunlab_A, c("A_Optimal...Power.DC..W.","YDay","hour_factor","Minute",
+               "Year","Optimal_Temperature","ambient_temperature","global_radiation",
+               "diffuse_radiation","ultraviolet","precipitation","atmospheric_pressure"), -"Datetime"))
+
+
 # Ridge regression 
 
 A<- sunlab_A[,c("Year","Month","YDay","Hour","ambient_temperature","global_radiation",
