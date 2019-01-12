@@ -20,6 +20,16 @@ rsquared <- function(pred, test){
   return(R_square)
 }
 
+# MAPE function
+mape <- function(pred, test){
+  tot <- 0
+  for (i in seq_along(pred)){
+    tot <- tot + abs((test[i]-pred[i])/test[i])
+  }
+  result <- (100*tot)/length(pred)
+  return(result)
+}
+
 # Experiments and understanding --------------------------------------------------
 
 # Visualise hour factor transformation
@@ -100,17 +110,26 @@ ggplot( sunlab_pred1 )+
 rsquared(sunlab_pred$fst, sunlab_pred$A_Optimal...Power.DC..W.) # Rsquared
   
 # LM and ridge regression with weather-----------------------------------------
+
+######### Linear model
 sunlab_model <- lm(A_Optimal...Power.DC..W. ~ 
                     YDay+hour_factor+Minute+Year+Optimal_Temperature+
                     ambient_temperature+global_radiation+diffuse_radiation+ ultraviolet + 
                      precipitation + atmospheric_pressure, data=sunlab_A)
 tidy(sunlab_model) #find the key values
 glance(sunlab_model)
+
+pred_lm <- as_tibble(predict(sunlab_model, train_x = sunlab_A))
+pred_lm$datetime <- sunlab_A$Datetime
+
+rsquared(pred_lm$value, sunlab_A$A_Optimal...Power.DC..W.)
+mape(pred_lm$value, sunlab_A$A_Optimal...Power.DC..W.)
+
 corPlot(select(sunlab_A, c("A_Optimal...Power.DC..W.","YDay","hour_factor","Minute",
                "Year","Optimal_Temperature","ambient_temperature","global_radiation",
                "diffuse_radiation","ultraviolet","precipitation","atmospheric_pressure"), -"Datetime"))
 
-# Ridge regression 
+################### Ridge regression 
 A<- sunlab_A[,c("Year","Month","YDay","Hour","ambient_temperature","global_radiation",
                 "diffuse_radiation","ultraviolet","wind_velocity","wind_direction",
                 "Optimal_Temperature","hour_factor", "month_factor", "precipitation", "atmospheric_pressure")]
@@ -138,6 +157,7 @@ sunlab_A %>% filter( Year=="2017", Month=="4") %>%
   facet_zoom(x = Datetime > as.Date("2017-04-27") & Datetime < as.Date("2017-05-01"), horizontal = FALSE, zoom.size = 0.6)
  
 rsquared(sunlab_A$min, sunlab_A$A_Optimal...Power.DC..W.) # again pick min or fst
+mape(sunlab_A$min, sunlab_A$A_Optimal...Power.DC..W.) # mape
 
 
 # SVR ---------------------------------------------------------------------
@@ -145,7 +165,7 @@ library(e1071)
 library(readr)
 
 regressor = svm(formula = A_Optimal...Power.DC..W. ~ 
-                 month_factor+YDay+hour_factor+Minute+Year+Optimal_Temperature+
+                 month_factor+YDay+hour_factor+Year+Optimal_Temperature+
                  ambient_temperature+global_radiation+diffuse_radiation+
                  ultraviolet+wind_velocity +wind_direction+precipitation+atmospheric_pressure,
                data = sunlab_A,
@@ -154,6 +174,7 @@ regressor = svm(formula = A_Optimal...Power.DC..W. ~
 
 sunlab_A$SVM <- predict(regressor, newdata = sunlab_A)
 rsquared(sunlab_A$SVM, sunlab_A$A_Optimal...Power.DC..W.) # Get rsquared
+mape(sunlab_A$SVM, sunlab_A$A_Optimal...Power.DC..W.) # Get mape
 
 sunlab_1 <- filter(sunlab_A,Year=="2017",Month=="1")
 ggplot(sunlab_1) +
