@@ -143,5 +143,56 @@ rsquared(sunlab_A$min, sunlab_A$A_Optimal...Power.DC..W.) # again pick min or fs
 
 
 
+# SVR ---------------------------------------------------------------------
 
+ library(e1071)
+ library(readr)
+ 
+
+ regressor = svm(formula = A_Optimal...Power.DC..W. ~ 
+                   month_factor+YDay+hour_factor+Minute+Year+Optimal_Temperature+
+                   ambient_temperature+global_radiatione+diffuse_radiation+
+                   ultraviolet+wind_velocity +wind_direction+precipitation+atmospheric_pressure,
+                 data = sunlab_A_test,
+                 type = 'eps-regression',
+                 kernel = 'radial')
+
+ sunlab_A_test<-drop_na(sunlab_A_test)
+ sunlab_1<-filter(sunlab_A_test,Year=="2017",Month=="1" )
+ 
+ ggplot( sunlab_1 )+
+   geom_point(aes(x=Datetime,y=A_Optimal...Power.DC..W.))+
+   geom_point(aes(x=Datetime,y=predict(regressor, newdata = sunlab_1)),col='red')+
+   theme_bw()
+ 
+ 
+ sunlab_A_test$SVM<- predict(regressor, newdata = sunlab_A_test)
+
+ mean<-0
+ for (i in seq_along(sunlab_A_test$A_Optimal...Power.DC..W.)){
+   mean<- mean+sunlab_A_test$A_Optimal...Power.DC..W.[i]}
+ mean<-mean/length(sunlab_A_test$A_Optimal...Power.DC..W.)
+ 
+ tot<-0
+ for (i in seq_along(sunlab_A_test$A_Optimal...Power.DC..W.)){
+   tot<- tot+(sunlab_A_test$A_Optimal...Power.DC..W.[i]-mean)^2}
+ 
+ res<-0
+ for (i in seq_along(sunlab_A_test$A_Optimal...Power.DC..W.)){
+   res<- res+(sunlab_A_test$A_Optimal...Power.DC..W.[i]-sunlab_A_test$SVM[i])^2}
+ 
+ R_square<- (1-res/tot)
+ R_square
+ 
+ 
+ ggplot() +
+   geom_point(aes(x = sunlab_A_test$Hour, y = sunlab_all_svr$A_Optimal...Power.DC..W.),
+              colour = 'red') +
+   geom_line(aes(x = sunlab_all_svr$Hour, y = predict(regressor, newdata = sunlab_A_test)),
+             colour = 'blue') +
+   ggtitle('Truth or Bluff (SVR)') +
+   xlab('Hour') +
+   ylab('Optimal_Power')
+
+ 
 
