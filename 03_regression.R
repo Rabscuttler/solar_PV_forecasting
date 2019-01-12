@@ -140,59 +140,33 @@ sunlab_A %>% filter( Year=="2017", Month=="4") %>%
 rsquared(sunlab_A$min, sunlab_A$A_Optimal...Power.DC..W.) # again pick min or fst
 
 
-
-
-
 # SVR ---------------------------------------------------------------------
+library(e1071)
+library(readr)
 
- library(e1071)
- library(readr)
- 
+regressor = svm(formula = A_Optimal...Power.DC..W. ~ 
+                 month_factor+YDay+hour_factor+Minute+Year+Optimal_Temperature+
+                 ambient_temperature+global_radiation+diffuse_radiation+
+                 ultraviolet+wind_velocity +wind_direction+precipitation+atmospheric_pressure,
+               data = sunlab_A,
+               type = 'eps-regression',
+               kernel = 'radial')
 
- regressor = svm(formula = A_Optimal...Power.DC..W. ~ 
-                   month_factor+YDay+hour_factor+Minute+Year+Optimal_Temperature+
-                   ambient_temperature+global_radiatione+diffuse_radiation+
-                   ultraviolet+wind_velocity +wind_direction+precipitation+atmospheric_pressure,
-                 data = sunlab_A_test,
-                 type = 'eps-regression',
-                 kernel = 'radial')
+sunlab_A$SVM <- predict(regressor, newdata = sunlab_A)
+rsquared(sunlab_A$SVM, sunlab_A$A_Optimal...Power.DC..W.) # Get rsquared
 
- sunlab_A_test<-drop_na(sunlab_A_test)
- sunlab_1<-filter(sunlab_A_test,Year=="2017",Month=="1" )
- 
- ggplot( sunlab_1 )+
-   geom_point(aes(x=Datetime,y=A_Optimal...Power.DC..W.))+
-   geom_point(aes(x=Datetime,y=predict(regressor, newdata = sunlab_1)),col='red')+
-   theme_bw()
- 
- 
- sunlab_A_test$SVM<- predict(regressor, newdata = sunlab_A_test)
+sunlab_1 <- filter(sunlab_A,Year=="2017",Month=="1")
+ggplot(sunlab_1) +
+  geom_point(aes(x=Datetime,y=A_Optimal...Power.DC..W.))+
+  geom_point(aes(x=Datetime,y=predict(regressor, newdata = sunlab_1)),col='red')+
+  theme_bw()
 
- mean<-0
- for (i in seq_along(sunlab_A_test$A_Optimal...Power.DC..W.)){
-   mean<- mean+sunlab_A_test$A_Optimal...Power.DC..W.[i]}
- mean<-mean/length(sunlab_A_test$A_Optimal...Power.DC..W.)
- 
- tot<-0
- for (i in seq_along(sunlab_A_test$A_Optimal...Power.DC..W.)){
-   tot<- tot+(sunlab_A_test$A_Optimal...Power.DC..W.[i]-mean)^2}
- 
- res<-0
- for (i in seq_along(sunlab_A_test$A_Optimal...Power.DC..W.)){
-   res<- res+(sunlab_A_test$A_Optimal...Power.DC..W.[i]-sunlab_A_test$SVM[i])^2}
- 
- R_square<- (1-res/tot)
- R_square
- 
- 
- ggplot() +
-   geom_point(aes(x = sunlab_A_test$Hour, y = sunlab_all_svr$A_Optimal...Power.DC..W.),
-              colour = 'red') +
-   geom_line(aes(x = sunlab_all_svr$Hour, y = predict(regressor, newdata = sunlab_A_test)),
-             colour = 'blue') +
-   ggtitle('Truth or Bluff (SVR)') +
-   xlab('Hour') +
-   ylab('Optimal_Power')
-
- 
+sunlab_A %>% filter( Year=="2017", Month=="1") %>% select(Datetime, A_Optimal...Power.DC..W.,SVM) %>%
+  gather(type,value, A_Optimal...Power.DC..W.,SVM) %>%
+  ggplot(aes(x=Datetime,y=value, group=type)) + geom_line(aes(linetype=type, color=type)) + 
+  geom_point(aes(color=type), size=0.2) +
+  facet_zoom(x = Datetime > as.Date("2017-01-24") & Datetime < as.Date("2017-01-28"), horizontal = FALSE, zoom.size = 0.6)+
+  scale_color_manual(name="Data", values=c("black", "red"), labels=c("Actual", "Predicted")) + 
+  scale_linetype_manual(name="Data", values=c("solid", "dotted"), labels=c("Actual", "Predicted")) + 
+  labs(x="Date, 2017", y="Power (W)") + theme(legend.position = "bottom")
 
