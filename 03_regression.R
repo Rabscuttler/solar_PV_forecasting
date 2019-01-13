@@ -67,6 +67,8 @@ sunlab_A$wind_direction <- sunlab_A$wind_direction
 sunlab_A$precipitation <- sunlab_A$precipitation
 sunlab_A$atmospheric_pressure <- (sunlab_A$atmospheric_pressure-1000)
 setnames(sunlab_A, old="A_Optimal...Temperature..ºC.", new="Optimal_Temperature")
+sunlab_A <- subset(sunlab_A, select=-c(17,18))
+sunlab_A <- filter(sunlab_A, ambient_temperature > 0)
 sunlab_A <- drop_na(sunlab_A)
 
 # Training and test data
@@ -75,7 +77,7 @@ sunlab_A_train <- filter(sunlab_A,Month<10&Year=="2017"|Year=="2016"|Year=="2015
 
 # LM and ridge regression without weather-----------------------------------------
 ############# Simple Linear Model
-sunlab_model <- lm(A_Optimal...Power.DC..W. ~ Month+YDay+hour_factor+Year, data=sunlab_A_train)
+sunlab_model <- lm(A_Optimal...Power.DC..W. ~ month_factor+YDay+time_factor+Year, data=sunlab_A_train)
 tidy(sunlab_model) # find the key values
 glance(sunlab_model) # rsquared 0.667
 
@@ -83,10 +85,10 @@ lm_no_weather <- as_tibble(predict(sunlab_model, newdata = sunlab_A_test))
 
 rsquared(lm_no_weather$value, sunlab_A_test$A_Optimal...Power.DC..W.) # rsquared 0.365 (on test data)
 mape(lm_no_weather$value, sunlab_A_test$A_Optimal...Power.DC..W.) # MAPE 2.97
-mape2(lm_no_weather$value, sunlab_A_test$A_Optimal...Power.DC..W.)
 
 ############ Ridge Regression
-x <- as.matrix( sunlab_A_train[,c("Year", "Month", "YDay","time_factor")])
+ridge_factors <- c("Year", "month_factor", "time_factor", "YDay")
+x <- as.matrix( sunlab_A_train[,ridge_factors])
 y <- as.matrix( sunlab_A_train[,"A_Optimal...Power.DC..W."])
 ridge <- glmnet(x, y, family = "gaussian", alpha = 0) # alpha=0 means ridge regression
 
@@ -107,15 +109,13 @@ round(ridge.coef.min,2) # in my opinion, the min method is better in the case
 
 # predict the generation values to show the effect of min method 
 # and 1 standard error method
-sunlab_A_test$min <- predict(cvfit, as.matrix(sunlab_A_test[,c("Year", "Month", "YDay","time_factor")]), 
-                                                      s="lambda.min")
-sunlab_A_test$fst <- predict(cvfit, as.matrix(sunlab_A_test[,c("Year", "Month", "YDay","time_factor")]), 
-                             s="lambda.1se")
+sunlab_A_test$min <- predict(cvfit, as.matrix(sunlab_A_test[,ridge_factors]), s="lambda.min")
+sunlab_A_test$fst <- predict(cvfit, as.matrix(sunlab_A_test[,ridge_factors]), s="lambda.1se")
 
 sunlab_A_test$min <- as.numeric(sunlab_A_test$min)
 sunlab_A_test$fst <- as.numeric(sunlab_A_test$fst)
 
-ggplot(filter(sunlab_A_test,Year=="2017",Month=="10"))+
+ggplot(sunlab_A_test)+
  geom_point(aes(x=Datetime,y=A_Optimal...Power.DC..W.))+
  geom_point(aes(x=Datetime,y=min),col='red')
 
@@ -126,29 +126,27 @@ mape(sunlab_A_test$fst, sunlab_A_test$A_Optimal...Power.DC..W.) # mape 2.28
 
 ######### Linear model
 sunlab_model <- lm(A_Optimal...Power.DC..W. ~ 
-                    YDay+hour_factor+Minute+Year+Optimal_Temperature+
+                    YDay+month_factor+time_factor+Year+Optimal_Temperature+
                     ambient_temperature+global_radiation+diffuse_radiation+ ultraviolet + 
-                     precipitation + atmospheric_pressure, data=sunlab_A_train)
+                     wind_velocity + wind_direction, data=sunlab_A_train)
 tidy(sunlab_model) #find the key values
 glance(sunlab_model)
 
-pred_lm <- as_tibble(predict(sunlab_model, newdata = sunlab_A_test))
-pred_lm$datetime <- sunlab_A_test$Datetime
+sunlab_A_test$lm <- predict(sunlab_model, newdata = sunlab_A_test)
 
-rsquared(pred_lm$value, sunlab_A_test$A_Optimal...Power.DC..W.) #0.676
-mape(pred_lm$value, sunlab_A_test$A_Optimal...Power.DC..W.) # 0.889
+rsquared(sunlab_A_test$lm, sunlab_A_test$A_Optimal...Power.DC..W.) #0.676
+mape(sunlab_A_test$lm, sunlab_A_test$A_Optimal...Power.DC..W.) # 0.889
 
-corPlot(select(sunlab_A, c("A_Optimal...Power.DC..W.","YDay","hour_factor","Minute",
+corPlot(select(sunlab_A, c("A_Optimal...Power.DC..W.","YDay","hour_factor", "time_factor","Minute",
                "Year","Optimal_Temperature","ambient_temperature","global_radiation",
                "diffuse_radiation","ultraviolet","precipitation","atmospheric_pressure"), -"Datetime"))
 
 ################### Ridge regression 
-A<- sunlab_A_train[,c("Year","Month","YDay","Hour","ambient_temperature","global_radiation",
-                "diffuse_radiation","ultraviolet","wind_velocity","wind_direction",
-                "Optimal_Temperature","hour_factor", "month_factor", "precipitation", "atmospheric_pressure")]
-B<- sunlab_A_test[,c("Year","Month","YDay","Hour","ambient_temperature","global_radiation",
-                      "diffuse_radiation","ultraviolet","wind_velocity","wind_direction",
-                      "Optimal_Temperature","hour_factor", "month_factor", "precipitation", "atmospheric_pressure")]
+ridge_factors_weather <- c("Year","YDay","time_factor", "month_factor", 
+                           "ambient_temperature","global_radiation","diffuse_radiation","ultraviolet",
+                           "wind_velocity","wind_direction","Optimal_Temperature")
+A<- sunlab_A_train[,ridge_factors_weather]
+B<- sunlab_A_test[,ridge_factors_weather]
 x <- as.matrix(A)
 y <- sunlab_A_train[,"A_Optimal...Power.DC..W."]
 x2 <- as.matrix(B)
@@ -159,7 +157,7 @@ ridge <- glmnet(x, y, family = "gaussian", alpha = 0) # alpha=0 means ridge regr
 # plot(ridge,label=TRUE) # the value of punishment time as x label 
 # plot(ridge,xvar="lambda",label=TRUE) # the logarithmic form of lambda as x label
 cvfit = cv.glmnet(x, y) # find the optimum value
-# plot(cvfit)
+plot(cvfit)
 ridge.coef.1se <- coef(cvfit, s = "lambda.1se") # the intercept and cofficients of 1 standard error method
 # round(ridge.coef.1se,2)
 ridge.coef.min <- coef(cvfit, s = "lambda.min") # the intercept and cofficients of min method
@@ -167,7 +165,10 @@ ridge.coef.min <- coef(cvfit, s = "lambda.min") # the intercept and cofficients 
 # predict the generation values to show the effect of min method and 1 standard error method
 sunlab_A_test$min <- predict(cvfit,x2,s="lambda.min")
 sunlab_A_test$fst <- predict(cvfit,x2,s="lambda.1se")
- 
+
+# if hour not between 6 and 18 we can set to zero
+# sunlab_A_test %>% filter(Hour<"6" & Hour>"17")
+
 # Zoom plot - remember can choose between min and fst
 sunlab_A_test %>% filter( Year=="2017", Month=="10") %>% 
   ggplot() + geom_line(aes(x=Datetime,y=A_Optimal...Power.DC..W.), linetype="dotted", alpha=1) +
@@ -184,9 +185,9 @@ library(e1071)
 library(readr)
 
 regressor = svm(formula = A_Optimal...Power.DC..W. ~ 
-                 month_factor+YDay+hour_factor+Year+Optimal_Temperature+
+                 Year+month_factor+YDay+time_factor+Optimal_Temperature+
                  ambient_temperature+global_radiation+diffuse_radiation+
-                 ultraviolet+wind_velocity +wind_direction+precipitation+atmospheric_pressure,
+                 ultraviolet+wind_velocity +wind_direction,
                data = sunlab_A_train,
                type = 'eps-regression',
                kernel = 'radial')

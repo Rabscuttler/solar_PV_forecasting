@@ -54,22 +54,29 @@ sunlab_norm <- as.data.frame(lapply(sunlab_norm,normalise))
 # sunlab_norm <- filter(sunlab_norm,Minute=="0" ) # to reduce the size of data
 # sunlab_norm<-sunlab_norm [,-c(4)]
 
+
 test_sample <- sample(dim(sunlab_norm)[1], dim(sunlab_norm)[1] * 0.3)
 sunlab_test <- sunlab_norm[test_sample, ]
 sunlab_train <- sunlab_norm[-test_sample, ]
-
 f <- reformulate(names(sunlab_norm[,1:12]),response = "A_Optimal...Power.DC..W.")
+
+#### Do with new test sample
+sunlab_A_nn_train <- filter(sunlab_A_train, Minute=="0")
+sunlab_A_nn_train <- sunlab_A_nn[,c(2,4,10:16,18,21,9)]
+sunlab_A_nn_train <- as.data.frame(lapply(sunlab_A_nn,normalise))
+sunlab_A_nn_train <- drop_na(sunlab_A_nn)
+f <- reformulate(names(sunlab_A_nn[,1:11]),response = "A_Optimal...Power.DC..W.")
 
 # stepmax need to be enlarged here 
 # reference running time: 18-25 min for desktop
 neural_network <- neuralnet(formula = f,
-                            data = sunlab_train,
+                            data = sunlab_A_nn_train,
                             stepmax = 1e+08,
                             hidden = c(6,4),
                             linear.output=T)
 # plot(neural_network,fontsize = 8)
-pred <- compute(neural_network,sunlab_test[,1:12])$net.result
-rsquared(pred, sunlab_test$A_Optimal...Power.DC..W.)  # the calculation of R square
+sunlab_A_test$nn <- compute(neural_network,sunlab_A_test[,1:12])$net.result
+rsquared(sunlab_A_test$nn, sunlab_test$A_Optimal...Power.DC..W.)  # the calculation of R square
 # 0.9129906844 no wind -> 0.8976351618
 
 
@@ -99,34 +106,56 @@ ggplot( neural_test_month )+
 
 # Neural network try 2  -------------------------------------------
 
-# Reduce the data size
-sun_nn <- sunlab_A %>% 
-          # filter(Year==2017) %>%
-          filter(Minute=="10"| Minute=="20"| Minute=="30"| Minute=="40" |Minute=="50" |Minute=="0" ) %>%
-          select(Year, Month, YDay, Hour, Minute, Optimal_Temperature, ambient_temperature, 
-                 global_radiation, diffuse_radiation, ultraviolet, A_Optimal...Power.DC..W.) %>%
-          drop_na()
-sun_nn <- as.matrix(sun_nn)
-dimnames(sun_nn) <- NULL
+# Normalise all data
+normalise <- function(x) {
+  return((x - min(x)) / (max(x) - min(x)))
+}
 
-# Partition - this is random - make it date based
-set.seed(1234) # Set seed so our results will be the same each time after sampling
-ind <- sample(2, nrow(sun_nn), replace=T, prob=c(.7, .3))
-training <- sun_nn[ind==1, 1:10]
-test <- sun_nn[ind==2, 1:10]
-trainingtarget <- sun_nn[ind==1, 11]
-testtarget <- sun_nn[ind==2, 11]
+#### Get initial data and filter it
+sunlab_A_nn <- filter(sunlab_A, Minute=="10"| Minute=="20"| Minute=="30"| Minute=="40" |Minute=="50" |Minute=="0" )
+norm_max <- max(sunlab_A_nn$A_Optimal...Power.DC..W.)
+norm_min <- min(sunlab_A_nn$A_Optimal...Power.DC..W.)
+sunlab_A_nn %<>% select(c("Year","YDay","time_factor","Month", "month_factor","A_Optimal...Power.DC..W.","Optimal_Temperature",
+                      "ambient_temperature","global_radiation","diffuse_radiation","ultraviolet","wind_velocity",
+                      "wind_direction"))
+# Copy out year and month to filter later
+sunlab_A_nn_Year<-sunlab_A_nn[,c(1)]
+sunlab_A_nn_Month<-sunlab_A_nn[,c(4)]
 
-# Normalize = (Value - mean) / standard deviation
-m <- colMeans(training)
-s <- apply(training, 2, sd) 
-training <- scale(training, center = m, scale = s)
-test <- scale(test, center = m, scale = s)  
+# Normalise everything
+sunlab_A_nn <- as.data.frame(lapply(sunlab_A_nn,normalise))
+
+# Add back in year and month
+sunlab_A_nn$year_t <-sunlab_A_nn_Year
+sunlab_A_nn$month_t <-sunlab_A_nn_Month 
+
+# Select Training and test data
+sunlab_A_nn_test<-filter(sunlab_A_nn,month_t>9 & year_t=="2017")
+sunlab_A_nn_train <- filter(sunlab_A_nn,month_t<10&year_t=="2017"|year_t<"2017")
+
+# Remove Month, month_t and year_t
+sunlab_A_nn_train <- sunlab_A_nn_train[,-c(4,14,15)]
+sunlab_A_nn_test <- sunlab_A_nn_test[,-c(4,14,15)]
+
+# Reorder variables so power is at the end
+sunlab_A_nn_train <- sunlab_A_nn_train[,c(1:4, 6:12, 5)]
+sunlab_A_nn_test <- sunlab_A_nn_test[,c(1:4, 6:12, 5)]
+
+
+# sunlab_A_nn_train <- as.data.frame(lapply(sunlab_A_nn_train,normalise))
+# sunlab_A_nn_test <- as.data.frame(lapply(sunlab_A_nn_test,normalise))
+# Set target data
+trainingtarget <- sunlab_A_nn_train$A_Optimal...Power.DC..W.
+testtarget <- sunlab_A_nn_test$A_Optimal...Power.DC..W.
+
+# Turn to matrix form
+sunlab_A_nn_train <- as.matrix(sunlab_A_nn_train)
+sunlab_A_nn_test <- as.matrix(sunlab_A_nn_test)
 
 # Create the model
 model <- keras_model_sequential()
 model %>%
-  layer_dense(units = 100, activation = 'relu', input_shape= c(10)) %>%
+  layer_dense(units = 100, activation = 'relu', input_shape= c(12)) %>%
   layer_dropout(rate=0.5) %>%
   layer_dense(units = 100, activation = 'relu') %>%
   layer_dropout(rate=0.5) %>%
@@ -140,17 +169,31 @@ model %>% compile(loss = 'mse',
 
 # Fit model
 mymodel <- model %>% 
-  fit(training, 
+  fit(sunlab_A_nn_train, 
       trainingtarget,
-      epochs = 50,
+      epochs = 5,
       batch_size = 32,
       validation_split = 0.2)
 
 # Evaluate model
-model %>% evaluate(test, testtarget)
-pred <- model %>% predict(test)
-plot(testtarget, pred) # Plot predictions and data - want diagonal line for perfect predictions
+model %>% evaluate(sunlab_A_nn_test, testtarget)
+nn <- model %>% predict(sunlab_A_nn_test)
+rsquared(nn, sunlab_A_nn_test[,12])
+mape(nn, sunlab_A_nn_test[,12])
 
-?predict
+# Unnormalise for power output
+unnormalise <- function(x){
+  return((norm_max - norm_min)*x + norm_min)
+}
 
+nn2 <- as.data.frame(lapply(nn, unnormalise))
+sunlab_A_nn_test_2 <- filter(sunlab_A, Month>9 &Year=="2017" & (Minute=="10"| Minute=="20"| Minute=="30"| Minute=="40" |Minute=="50" |Minute=="0"))
+sunlab_A_nn_test_2$nn <- t(nn2)
 
+sunlab_A_nn_test_2 %>% gather(type,value, A_Optimal...Power.DC..W., nn) %>%
+  ggplot(aes(x=Datetime,y=value, group=type)) + geom_line(aes(linetype=type, color=type), alpha=0.5) + 
+  geom_point(aes(color=type), size=0.2) +
+  facet_zoom(x = Datetime > as.Date("2017-10-24") & Datetime < as.Date("2017-10-28"), horizontal = FALSE, zoom.size = 0.6)+
+  scale_color_manual(name="Data", values=c("black", "red"), labels=c("Actual", "Predicted")) + 
+  scale_linetype_manual(name="Data", values=c("solid", "dotted"), labels=c("Actual", "Predicted")) + 
+  labs(x="Date, 2017", y="Power (W)") + theme_bw() + theme(legend.position = "bottom")
