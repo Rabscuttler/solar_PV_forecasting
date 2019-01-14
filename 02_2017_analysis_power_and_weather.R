@@ -137,10 +137,15 @@ sunlab_A_slice <- sunlab_A %>%
   filter(Datetime > as.Date("2017-07-01")) %>%
   filter(Datetime < as.Date("2017-08-01"))
 
-ggplot(sunlab_A_slice, aes(Datetime, A_Optimal...Power.DC..W., group=1)) +
-  geom_line(linetype="dotted", alpha=1) +
-  facet_zoom(x = Datetime > as.Date("2017-07-11") & Datetime < as.Date("2017-07-15"),
-             horizontal = FALSE, zoom.size = 0.6)
+sunlab_B %>% mutate(daaa = ymd(as_date(Datetime))) %>% group_by(daaa) %>%
+  summarise(power = sum(B_Optimal...Power.DC..W.)) %>%
+  ggplot( aes(daaa, power, group=1)) +
+  geom_line(linetype="solid", alpha=1) +
+  facet_zoom(x = daaa > as.Date("2017-01-01") & daaa < as.Date("2017-07-15"),
+             horizontal = FALSE, zoom.size = 0.6) +
+  theme_set(theme_bw(base_size = 18)) + 
+  labs(x="Date", y="Power (W)") + 
+  ggtitle("Module B daily power output")
 
 # Big plots
 # ggplot(sunlab_A, aes(x=Datetime, y=A_Optimal...Power.DC..W., group=1)) + geom_line(linetype="dotted")
@@ -151,3 +156,18 @@ ggplot(sunlab_A_slice, aes(Datetime, A_Optimal...Power.DC..W., group=1)) +
 # ggplot(sunlab_A)+geom_boxplot(aes(x=as.factor(Hour),y=A_Optimal...Power.DC..W.))
 # four years total average generation varying with day of year
 # ggplot(sunlab_A)+geom_boxplot(aes(x=as.factor(YDay),y=A_Optimal...Power.DC..W.))
+
+
+# Horizontal vertical optimal yearly totals -------------------------------
+
+yearly_prod <- df %>% group_by(Year) %>% 
+  summarise(hor = sum(A_Horizontal...Power.DC..W.), ver=sum(A_Vertical...Power.DC..W.), opt=sum(A_Optimal...Power.DC..W.)) %>%
+  summarise(hor=mean(hor), ver=mean(ver), opt=mean(opt))
+
+# hor       ver       opt
+# <dbl>     <dbl>     <dbl>
+#   1 18854921. 12988774. 21345762.
+
+100* yearly_prod / yearly_prod$opt
+
+

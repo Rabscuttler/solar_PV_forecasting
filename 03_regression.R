@@ -193,6 +193,9 @@ regressor = svm(formula = A_Optimal...Power.DC..W. ~
                kernel = 'radial')
 
 sunlab_A_test$SVM <- predict(regressor, newdata = sunlab_A_test)
+sunlab_A_train$train_SVM <- predict(regressor, sunlab_A_train)
+rsquared(sunlab_A_test$SVM, sunlab_A_test$A_Optimal...Power.DC..W.) # rsquared 0.659
+
 rsquared(sunlab_A_test$SVM, sunlab_A_test$A_Optimal...Power.DC..W.) # rsquared 0.659
 mape(sunlab_A_test$SVM, sunlab_A_test$A_Optimal...Power.DC..W.) # Get mape 0.817
 
@@ -202,12 +205,14 @@ ggplot(sunlab_1) +
   geom_point(aes(x=Datetime,y=predict(regressor, newdata = sunlab_1)),col='red')+
   theme_bw()
 
-sunlab_A_test %>% filter( Year=="2017", Month=="10") %>% select(Datetime, A_Optimal...Power.DC..W.,SVM) %>%
-  gather(type,value, A_Optimal...Power.DC..W.,SVM) %>%
+sunlab_A_train %>% filter( Year=="2016", Month=="6") %>% select(Datetime, A_Optimal...Power.DC..W.,train_SVM) %>%
+  gather(type,value, A_Optimal...Power.DC..W.,train_SVM) %>%
   ggplot(aes(x=Datetime,y=value, group=type)) + geom_line(aes(linetype=type, color=type), alpha=0.5) + 
   geom_point(aes(color=type), size=0.2) +
-  facet_zoom(x = Datetime > as.Date("2017-10-24") & Datetime < as.Date("2017-10-28"), horizontal = FALSE, zoom.size = 0.6)+
+  facet_zoom(x = Datetime > as.Date("2016-06-20") & Datetime < as.Date("2016-06-25"), horizontal = FALSE, zoom.size = 0.6)+
   scale_color_manual(name="Data", values=c("black", "red"), labels=c("Actual", "Predicted")) + 
   scale_linetype_manual(name="Data", values=c("solid", "dotted"), labels=c("Actual", "Predicted")) + 
-  labs(x="Date, 2017", y="Power (W)") + theme_bw() + theme(legend.position = "bottom")
+  labs(x="Date, 2017", y="Power (W)") + 
+  theme_set(theme_bw(base_size = 18)) + 
+  theme(legend.position = "bottom")
 
