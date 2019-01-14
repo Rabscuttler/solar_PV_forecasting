@@ -149,8 +149,8 @@ trainingtarget <- sunlab_A_nn_train$A_Optimal...Power.DC..W.
 testtarget <- sunlab_A_nn_test$A_Optimal...Power.DC..W.
 
 # Turn to matrix form
-sunlab_A_nn_train <- as.matrix(sunlab_A_nn_train)
-sunlab_A_nn_test <- as.matrix(sunlab_A_nn_test)
+train_m <- as.matrix(sunlab_A_nn_train)
+test_m <- as.matrix(sunlab_A_nn_test)
 
 # Create the model
 model <- keras_model_sequential()
@@ -169,31 +169,39 @@ model %>% compile(loss = 'mse',
 
 # Fit model
 mymodel <- model %>% 
-  fit(sunlab_A_nn_train, 
+  fit(train_m, 
       trainingtarget,
       epochs = 5,
       batch_size = 32,
       validation_split = 0.2)
 
 # Evaluate model
-model %>% evaluate(sunlab_A_nn_test, testtarget)
+model %>% evaluate(test_m, testtarget)
 nn <- model %>% predict(sunlab_A_nn_test)
-rsquared(nn, sunlab_A_nn_test[,12])
-mape(nn, sunlab_A_nn_test[,12])
+rsquared(nn, sunlab_A_nn_test$A_Optimal...Power.DC..W.)
+mape(nn, sunlab_A_nn_test$A_Optimal...Power.DC..W.)
 
 # Unnormalise for power output
 unnormalise <- function(x){
-  return((norm_max - norm_min)*x + norm_min)
+  # return((norm_max - norm_min)*x + norm_min)
+  return(370*x)
 }
 
 nn2 <- as.data.frame(lapply(nn, unnormalise))
 sunlab_A_nn_test_2 <- filter(sunlab_A, Month>9 &Year=="2017" & (Minute=="10"| Minute=="20"| Minute=="30"| Minute=="40" |Minute=="50" |Minute=="0"))
 sunlab_A_nn_test_2$nn <- t(nn2)
+sunlab_A_test$nn <- t(nn2)
 
-sunlab_A_nn_test_2 %>% gather(type,value, A_Optimal...Power.DC..W., nn) %>%
+sunlab_A_nn_test_2 %>% 
+  filter(Datetime> as_date("2017-10-01") & Datetime < as_date("2017-11-01")) %>%
+  gather(type,value, A_Optimal...Power.DC..W., nn) %>%
   ggplot(aes(x=Datetime,y=value, group=type)) + geom_line(aes(linetype=type, color=type), alpha=0.5) + 
   geom_point(aes(color=type), size=0.2) +
   facet_zoom(x = Datetime > as.Date("2017-10-24") & Datetime < as.Date("2017-10-28"), horizontal = FALSE, zoom.size = 0.6)+
   scale_color_manual(name="Data", values=c("black", "red"), labels=c("Actual", "Predicted")) + 
   scale_linetype_manual(name="Data", values=c("solid", "dotted"), labels=c("Actual", "Predicted")) + 
   labs(x="Date, 2017", y="Power (W)") + theme_bw() + theme(legend.position = "bottom")
+
+
+write_csv(sunlab_A_nn_test_2, "nn.csv")
+

@@ -1,6 +1,6 @@
 # Repository specific exclusions ------------------------------------
 data/
-*.csv
+data/*.csv
 .DS_Store
 group_work_try1.R
 group_work_try2.R
